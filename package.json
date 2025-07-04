@@ -1,6 +1,6 @@
 {
 	"name": "nanato-wp-github-updates",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "A WordPress plugin that enables automatic updates and installations of themes and plugins directly from GitHub repositories, including private repositories.",
 	"main": "nanato-wp-github-updates.php",
 	"scripts": {

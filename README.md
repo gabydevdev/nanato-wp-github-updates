@@ -1,6 +1,6 @@
 # Nanato WP GitHub Updates
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Author:** Nanato Development Team  
 **License:** GPL v2 or later  
 **Requires WordPress:** 5.0 or higher  
