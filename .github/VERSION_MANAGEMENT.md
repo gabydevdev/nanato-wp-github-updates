@@ -14,18 +14,16 @@ This plugin uses an automated version management system that synchronizes versio
 # 1. Install dependencies (one-time setup)
 npm install
 
-# 2. Update version (choose one)
-npm run version:patch    # 1.0.0 → 1.0.1
-npm run version:minor    # 1.0.0 → 1.1.0  
-npm run version:major    # 1.0.0 → 2.0.0
+# 2. Update version (choose one) - Now includes Git tagging!
+npm run version:patch    # 1.0.0 → 1.0.1 + Git tag + commit
+npm run version:minor    # 1.0.0 → 1.1.0 + Git tag + commit
+npm run version:major    # 1.0.0 → 2.0.0 + Git tag + commit
 
-# 3. Create release package
+# 3. Create release package and push to GitHub
 npm run release
 
-# 4. Commit and push changes
-git add .
-git commit -m "Release version 1.0.1"
-git push origin main
+# Alternative: Create package without pushing
+npm run release:local
 ```
 
 ## 📦 Available Commands
@@ -33,17 +31,24 @@ git push origin main
 ### Version Management
 | Command | Description | Example |
 |---------|-------------|---------|
-| `npm run version:patch` | Increment patch version | `1.0.0` → `1.0.1` |
-| `npm run version:minor` | Increment minor version | `1.0.0` → `1.1.0` |
-| `npm run version:major` | Increment major version | `1.0.0` → `2.0.0` |
-| `npm run version:set --version=X.Y.Z` | Set specific version | `npm run version:set --version=2.1.0` |
+| `npm run version:patch` | Increment patch version + Git tag | `1.0.0` → `1.0.1` + `v1.0.1` tag |
+| `npm run version:minor` | Increment minor version + Git tag | `1.0.0` → `1.1.0` + `v1.1.0` tag |
+| `npm run version:major` | Increment major version + Git tag | `1.0.0` → `2.0.0` + `v2.0.0` tag |
+| `npm run version:set --version=X.Y.Z` | Set specific version + Git tag | `npm run version:set --version=2.1.0` |
 
 ### Build & Release
 | Command | Description |
 |---------|-------------|
 | `npm run build` | Update version across all files |
 | `npm run zip` | Create distribution ZIP file |
-| `npm run release` | Build + ZIP in one command |
+| `npm run release` | Build + ZIP + Push to GitHub |
+| `npm run release:local` | Build + ZIP (no Git push) |
+
+### Git Operations
+| Command | Description |
+|---------|-------------|
+| `npm run git:tag` | Create Git tag for current version |
+| `npm run git:push` | Push commits and tags to GitHub |
 
 ### Utility Commands
 | Command | Description |
@@ -88,7 +93,7 @@ define('NANATO_GITHUB_UPDATES_VERSION', '1.0.1');  ← Updated automatically
 3. **Update any documentation** if needed
 4. **Review the changelog** (if you maintain one)
 
-### Step 2: Update Version
+### Step 2: Update Version & Create Git Tag
 Choose the appropriate version increment:
 
 **Patch Version (Bug fixes, minor improvements)**
@@ -111,7 +116,13 @@ npm run version:major
 npm run version:set --version=1.5.0
 ```
 
-### Step 3: Create Release Package
+**What happens automatically:**
+- ✅ Updates version numbers in all plugin files
+- ✅ Creates Git commit with release message
+- ✅ Creates Git tag (e.g., `v1.0.1`) with detailed release notes
+- ✅ Shows next steps for pushing to GitHub
+
+### Step 3: Create Release Package & Push to GitHub
 ```bash
 npm run release
 ```
@@ -119,23 +130,23 @@ npm run release
 This command will:
 - ✅ Update version numbers across all files
 - ✅ Create a clean ZIP file for distribution
+- ✅ Push commits and tags to GitHub
 - ✅ Remove development files from ZIP
 - ✅ Clean up old ZIP files (keeps latest 3)
 
-### Step 4: Commit Changes
+**Alternative (Local only):**
 ```bash
-git add .
-git commit -m "Release version 1.0.1"
-git push origin main
+npm run release:local
 ```
+Use this if you want to create the package without pushing to GitHub yet.
 
-### Step 5: Create GitHub Release (Optional)
+### Step 4: Create GitHub Release (Optional but Recommended)
 1. Go to your GitHub repository
 2. Click "Releases" → "Create a new release"
-3. Tag version: `v1.0.1`
-4. Release title: `Version 1.0.1`
-5. Upload the generated ZIP file
-6. Add release notes
+3. Select the tag that was just created (e.g., `v1.0.1`)
+4. The release title and notes will be pre-filled from the Git tag
+5. Upload the generated ZIP file (`nanato-wp-github-updates-1.0.1.zip`)
+6. Click "Publish release"
 
 ## 📝 Version Numbering Guidelines
 
