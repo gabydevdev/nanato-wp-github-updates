@@ -2,26 +2,6 @@
 	"name": "nanato-wp-github-updates",
 	"version": "1.0.1",
 	"description": "A WordPress plugin that enables automatic updates and installations of themes and plugins directly from GitHub repositories, including private repositories.",
-	"main": "nanato-wp-github-updates.php",
-	"scripts": {
-		"version:update": "node scripts/update-version.js",
-		"version:patch": "npm version patch --no-git-tag-version && npm run version:update && npm run git:tag",
-		"version:minor": "npm version minor --no-git-tag-version && npm run version:update && npm run git:tag",
-		"version:major": "npm version major --no-git-tag-version && npm run version:update && npm run git:tag",
-		"version:set": "npm version $npm_config_version --no-git-tag-version && npm run version:update && npm run git:tag",
-		"preversion": "echo 'Current version:' && node -p \"require('./package.json').version\"",
-		"postversion": "echo 'Updated to version:' && node -p \"require('./package.json').version\"",
-		"git:tag": "node scripts/create-git-tag.js",
-		"git:push": "git push origin main && git push origin --tags",
-		"build": "echo 'Building plugin...' && npm run version:update",
-		"zip": "node scripts/create-zip.js",
-		"release": "npm run build && npm run zip && npm run git:push",
-		"release:local": "npm run build && npm run zip",
-		"dev": "echo 'Development mode - watching for changes...'",
-		"lint:php": "echo 'PHP linting not configured yet'",
-		"lint:js": "echo 'JavaScript linting not configured yet'",
-		"test": "echo 'Tests not configured yet'"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/gabydevdev/nanato-wp-github-updates.git"
@@ -35,28 +15,5 @@
 		"private-repositories",
 		"themes",
 		"plugins"
-	],
-	"author": "Nanato Development Team",
-	"license": "GPL-2.0-or-later",
-	"bugs": {
-		"url": "https://github.com/gabydevdev/nanato-wp-github-updates/issues"
-	},
-	"homepage": "https://github.com/gabydevdev/nanato-wp-github-updates#readme",
-	"devDependencies": {
-		"archiver": "^5.3.2",
-		"chalk": "^4.1.2",
-		"fs-extra": "^11.1.1",
-		"glob": "^10.3.3"
-	},
-	"engines": {
-		"node": ">=14.0.0",
-		"npm": ">=6.0.0"
-	},
-	"config": {
-		"pluginFiles": [
-			"nanato-wp-github-updates.php",
-			"README.md",
-			"includes/class-nanato-github-updates.php"
-		]
-	}
+	]
 }
