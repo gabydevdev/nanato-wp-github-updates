@@ -63,7 +63,7 @@ class Nanato_GitHub_API {
 
 		// Add authentication if token is available
 		if ( ! empty( $this->access_token ) ) {
-			$default_args['headers']['Authorization'] = 'Bearer ' . $this->access_token;
+			$default_args['headers']['Authorization'] = 'token ' . $this->access_token;
 		}
 
 		$args = wp_parse_args( $args, $default_args );
@@ -262,8 +262,9 @@ class Nanato_GitHub_API {
 				// Log the fallback
 				error_log( 'GitHub API: Falling back to default branch: ' . $default_branch );
 
-				// Direct download from default branch
-				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/heads/%s.zip',
+				// Use API URL for default branch to support authentication
+				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+					$this->api_url,
 					$owner,
 					$repo,
 					$default_branch
@@ -272,43 +273,44 @@ class Nanato_GitHub_API {
 				return $download_url;
 			}
 
-			// Check if there are any assets
+			// Debug the release information
+			$this->debug_release_info( $release );
+
+			// For private repositories or when we have auth, prefer zipball_url (API endpoint)
+			// which works better with token authentication
+			if ( ! empty( $release['zipball_url'] ) && ! empty( $this->access_token ) ) {
+				error_log( 'GitHub API: Using zipball URL for authenticated download: ' . $release['zipball_url'] );
+				return $release['zipball_url'];
+			}
+
+			// Check if there are any assets (only for public repos or as fallback)
 			if ( ! empty( $release['assets'] ) ) {
 				foreach ( $release['assets'] as $asset ) {
 					if ( isset( $asset['browser_download_url'] ) &&
 						( strpos( $asset['name'], '.zip' ) !== false ||
 							isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip' ) ) {
+						
+						// For private repos, we need to use the API endpoint for assets
+						if ( ! empty( $this->access_token ) && isset( $asset['url'] ) ) {
+							error_log( 'GitHub API: Using asset API URL for authenticated download: ' . $asset['url'] );
+							return $asset['url'];
+						}
+						
 						return $asset['browser_download_url'];
 					}
 				}
 			}
 
-			// If no suitable assets, use the zipball_url
+			// Fallback to zipball_url from API (works better with auth)
 			if ( ! empty( $release['zipball_url'] ) ) {
-				// For API URLs, ensure we're using the correct URL format
-				$zipball_url = $release['zipball_url'];
-
-				// Check if we're using GitHub API URL
-				if ( strpos( $zipball_url, 'api.github.com' ) !== false ) {
-					// Convert to a proper direct download URL that works more reliably
-					if ( ! empty( $release['tag_name'] ) ) {
-						$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/tags/%s.zip',
-							$owner,
-							$repo,
-							$release['tag_name']
-						);
-
-						error_log( 'Converted API zipball URL to direct GitHub URL: ' . $download_url );
-						return $download_url;
-					}
-				}
-
-				return $zipball_url;
+				error_log( 'GitHub API: Fallback to zipball URL: ' . $release['zipball_url'] );
+				return $release['zipball_url'];
 			}
 
-			// If all else fails, construct a direct download URL for the tag
+			// If all else fails, construct an API download URL for the tag
 			if ( ! empty( $release['tag_name'] ) ) {
-				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/tags/%s.zip',
+				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+					$this->api_url,
 					$owner,
 					$repo,
 					$release['tag_name']
@@ -326,19 +328,37 @@ class Nanato_GitHub_API {
 
 		// Determine if version is a tag or branch
 		if ( preg_match( '/^v?\d+(\.\d+)*$/', $version ) ) {
-			// Looks like a version tag
-			$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/tags/%s.zip',
-				$owner,
-				$repo,
-				$version
-			);
+			// Looks like a version tag - use API URL for better auth support
+			if ( ! empty( $this->access_token ) ) {
+				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+					$this->api_url,
+					$owner,
+					$repo,
+					$version
+				);
+			} else {
+				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/tags/%s.zip',
+					$owner,
+					$repo,
+					$version
+				);
+			}
 		} else {
-			// Treat as a branch
-			$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/heads/%s.zip',
-				$owner,
-				$repo,
-				$version
-			);
+			// Treat as a branch - use API URL for better auth support
+			if ( ! empty( $this->access_token ) ) {
+				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+					$this->api_url,
+					$owner,
+					$repo,
+					$version
+				);
+			} else {
+				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/heads/%s.zip',
+					$owner,
+					$repo,
+					$version
+				);
+			}
 		}
 
 		return $download_url;
@@ -399,16 +419,25 @@ class Nanato_GitHub_API {
 		// Prepare download arguments with authentication
 		$args = array(
 			'headers'   => array(
-				'Accept'     => 'application/vnd.github.v3+json',
 				'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . get_bloginfo( 'url' ),
 			),
 			'timeout'   => 60, // Increase timeout for large files
 			'sslverify' => true,
 		);
 
+		// Check if this is a GitHub API asset URL (needs special Accept header)
+		if ( strpos( $url, 'api.github.com' ) !== false && strpos( $url, '/releases/assets/' ) !== false ) {
+			// For asset downloads, we need application/octet-stream
+			$args['headers']['Accept'] = 'application/octet-stream';
+			error_log( 'GitHub Download: Using asset download headers for API URL' );
+		} else {
+			// For regular API calls
+			$args['headers']['Accept'] = 'application/vnd.github.v3+json';
+		}
+
 		// Add authentication if token is available
 		if ( ! empty( $this->access_token ) ) {
-			$args['headers']['Authorization'] = 'Bearer ' . $this->access_token;
+			$args['headers']['Authorization'] = 'token ' . $this->access_token;
 			error_log( 'GitHub Download: Using authenticated request' );
 		} else {
 			error_log( 'GitHub Download: No authentication token available' );
@@ -429,6 +458,31 @@ class Nanato_GitHub_API {
 		$body             = wp_remote_retrieve_body( $response );
 
 		error_log( 'GitHub Download Response Code: ' . $response_code );
+
+		// Handle redirects for GitHub API downloads (common with zipball URLs)
+		if ( $response_code === 302 || $response_code === 301 ) {
+			$redirect_url = wp_remote_retrieve_header( $response, 'location' );
+			if ( $redirect_url ) {
+				error_log( 'GitHub Download: Following redirect to: ' . $redirect_url );
+				
+				// Follow the redirect with the same authentication
+				$redirect_args = $args;
+				// Remove Accept header for the redirected URL (usually to AWS S3)
+				unset( $redirect_args['headers']['Accept'] );
+				unset( $redirect_args['headers']['Authorization'] ); // AWS S3 doesn't need GitHub auth
+				
+				$response = wp_remote_get( $redirect_url, $redirect_args );
+				
+				if ( is_wp_error( $response ) ) {
+					error_log( 'GitHub Download Redirect Error: ' . $response->get_error_message() );
+					return $response;
+				}
+				
+				$response_code = wp_remote_retrieve_response_code( $response );
+				$body = wp_remote_retrieve_body( $response );
+				error_log( 'GitHub Download Redirect Response Code: ' . $response_code );
+			}
+		}
 
 		if ( $response_code !== 200 ) {
 			$error_message = $response_message;
@@ -555,18 +609,42 @@ class Nanato_GitHub_API {
 
 		// GitHub URLs that typically require authentication:
 		// - api.github.com URLs (zipball/tarball)
+		// - Any github.com URLs (since we can't easily determine if repo is private)
 		// - Private repository archive URLs
 		if ( strpos( $url, 'api.github.com' ) !== false ) {
 			return true;
 		}
 
-		// For direct GitHub archive URLs, we can't easily determine
-		// if the repository is private without making a request
-		// So we'll always use authentication if we have a token
-		if ( strpos( $url, 'github.com' ) !== false && strpos( $url, '/archive/' ) !== false ) {
+		// For any GitHub URLs, we should use authentication if we have a token
+		// This covers both private repos and helps avoid rate limiting for public repos
+		if ( strpos( $url, 'github.com' ) !== false ) {
 			return true;
 		}
 
 		return false;
+	}
+
+	/**
+	 * Debug method to log release information
+	 *
+	 * @param array $release Release data from GitHub API
+	 */
+	public function debug_release_info( $release ) {
+		if ( ! is_array( $release ) ) {
+			error_log( 'GitHub Debug: Release data is not an array' );
+			return;
+		}
+
+		error_log( 'GitHub Debug: Release tag: ' . ( isset( $release['tag_name'] ) ? $release['tag_name'] : 'N/A' ) );
+		error_log( 'GitHub Debug: Zipball URL: ' . ( isset( $release['zipball_url'] ) ? $release['zipball_url'] : 'N/A' ) );
+		error_log( 'GitHub Debug: Assets count: ' . ( isset( $release['assets'] ) ? count( $release['assets'] ) : '0' ) );
+
+		if ( isset( $release['assets'] ) && is_array( $release['assets'] ) ) {
+			foreach ( $release['assets'] as $index => $asset ) {
+				error_log( 'GitHub Debug: Asset ' . $index . ' - Name: ' . ( isset( $asset['name'] ) ? $asset['name'] : 'N/A' ) );
+				error_log( 'GitHub Debug: Asset ' . $index . ' - Download URL: ' . ( isset( $asset['browser_download_url'] ) ? $asset['browser_download_url'] : 'N/A' ) );
+				error_log( 'GitHub Debug: Asset ' . $index . ' - API URL: ' . ( isset( $asset['url'] ) ? $asset['url'] : 'N/A' ) );
+			}
+		}
 	}
 }

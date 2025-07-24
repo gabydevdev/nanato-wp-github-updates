@@ -83,12 +83,15 @@ class Nanato_GitHub_Updates {
 				}
 			}
 
-			// Use our authenticated download method for GitHub URLs
+			// Use our authenticated download method for all GitHub URLs if we have a token
 			$api = new Nanato_GitHub_API();
 
-			// Check if this URL requires authentication
-			if ( $api->url_requires_auth( $package ) ) {
-				error_log( 'GitHub Updates: URL requires authentication, using authenticated download' );
+			// Check if we have a token to use for authentication
+			$options = get_option( 'nanato_github_updates_settings' );
+			$has_token = ! empty( $options['github_token'] );
+
+			if ( $has_token ) {
+				error_log( 'GitHub Updates: Using authenticated download for GitHub URL' );
 
 				// Download using our authenticated method
 				$temp_file = $api->download_file_authenticated( $package );
@@ -101,17 +104,14 @@ class Nanato_GitHub_Updates {
 				error_log( 'GitHub Updates: Successfully downloaded with authentication to: ' . $temp_file );
 				return $temp_file;
 			} else {
-				error_log( 'GitHub Updates: URL does not require authentication, using standard download' );
-				// For public repositories that don't require auth, still try authenticated download
-				// in case of rate limiting
-				$temp_file = $api->download_file_authenticated( $package );
-
-				if ( is_wp_error( $temp_file ) ) {
-					error_log( 'GitHub Updates: Authenticated download failed, falling back to standard download: ' . $temp_file->get_error_message() );
-					// Fall through to let WordPress handle it normally
-				} else {
-					error_log( 'GitHub Updates: Successfully downloaded to: ' . $temp_file );
-					return $temp_file;
+				error_log( 'GitHub Updates: No authentication token available, trying public access' );
+				// For public repositories without auth, let WordPress handle it normally
+				// unless it's an API URL which definitely needs auth
+				if ( strpos( $package, 'api.github.com' ) !== false ) {
+					return new WP_Error( 
+						'github_auth_required', 
+						'This GitHub API URL requires authentication. Please configure your GitHub token in the plugin settings.' 
+					);
 				}
 			}
 		}

@@ -73,7 +73,23 @@ class Nanato_GitHub_Installer {
 		$repo_info = $this->api->get_repository( $owner, $name );
 
 		if ( is_wp_error( $repo_info ) ) {
-			wp_send_json_error( $repo_info->get_error_message() );
+			$error_message = $repo_info->get_error_message();
+			$error_data = $repo_info->get_error_data();
+			
+			// Provide more specific error messages for private repos
+			if ( isset( $error_data['code'] ) ) {
+				switch ( $error_data['code'] ) {
+					case 404:
+						$error_message = 'Repository not found. If this is a private repository, please ensure your GitHub token has access to it.';
+						break;
+					case 401:
+					case 403:
+						$error_message = 'Access denied to this repository. Please ensure your GitHub token has the correct permissions.';
+						break;
+				}
+			}
+			
+			wp_send_json_error( $error_message );
 			return;
 		}
 
@@ -81,7 +97,23 @@ class Nanato_GitHub_Installer {
 		$release = $this->api->get_latest_release( $owner, $name );
 
 		if ( is_wp_error( $release ) ) {
-			wp_send_json_error( 'No releases found for this repository.' );
+			$error_message = 'No releases found for this repository.';
+			$error_data = $release->get_error_data();
+			
+			// Provide more specific error messages
+			if ( isset( $error_data['code'] ) ) {
+				switch ( $error_data['code'] ) {
+					case 404:
+						$error_message = 'No releases found for this repository. You can still install from the default branch if the repository exists.';
+						break;
+					case 401:
+					case 403:
+						$error_message = 'Access denied when trying to fetch releases. Please ensure your GitHub token has access to this repository.';
+						break;
+				}
+			}
+			
+			wp_send_json_error( $error_message );
 			return;
 		}
 
@@ -195,17 +227,25 @@ class Nanato_GitHub_Installer {
 
 		error_log( 'Using download URL: ' . $download_url );
 
-		// Check if this URL requires authentication
-		if ( $this->api->url_requires_auth( $download_url ) ) {
-			error_log( 'GitHub Download: URL requires authentication' );
+		// Check if this URL requires authentication or if we should try authentication
+		$api_url_detected = strpos( $download_url, 'api.github.com' ) !== false;
+		$github_url_detected = strpos( $download_url, 'github.com' ) !== false;
+		
+		if ( $api_url_detected || $github_url_detected ) {
+			error_log( 'GitHub Download: GitHub URL detected, checking authentication' );
 
 			// Get the GitHub token to verify it exists
 			$options   = get_option( 'nanato_github_updates_settings' );
 			$has_token = ! empty( $options['github_token'] );
 
-			if ( ! $has_token ) {
+			if ( ! $has_token && $api_url_detected ) {
+				// API URLs definitely require authentication
 				wp_send_json_error( 'This repository requires a GitHub token for access. Please configure your GitHub token in the plugin settings.' );
 				return;
+			} elseif ( ! $has_token ) {
+				error_log( 'GitHub Download: No token available, attempting public access' );
+			} else {
+				error_log( 'GitHub Download: Token available, will use authenticated access' );
 			}
 		}
 
@@ -219,11 +259,13 @@ class Nanato_GitHub_Installer {
 			if ( isset( $error_data['code'] ) ) {
 				switch ( $error_data['code'] ) {
 					case 404:
-						$error_message = 'Repository or release not found. Please verify the repository exists and you have access to it.';
+						$error_message = 'Repository or release not found. Please verify the repository exists and you have access to it. If this is a private repository, ensure your GitHub token has the correct permissions.';
 						break;
 					case 401:
+						$error_message = 'Authentication failed. Your GitHub token may be invalid. Please check your token configuration.';
+						break;
 					case 403:
-						$error_message = 'Access denied. Your GitHub token may be invalid or missing required permissions. Please check your token configuration.';
+						$error_message = 'Access denied. Your GitHub token may be missing required permissions for this private repository. Please ensure your token has at least "repo" scope for private repositories.';
 						break;
 				}
 			}
