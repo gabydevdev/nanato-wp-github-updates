@@ -1,6 +1,6 @@
 {
   "name": "nanato-wp-github-updates",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A WordPress plugin that enables automatic updates and installations of themes and plugins directly from GitHub repositories, including private repositories.",
   "repository": {
     "type": "git",
@@ -15,5 +15,17 @@
     "private-repositories",
     "themes",
     "plugins"
-  ]
+  ],
+  "devDependencies": {
+    "wp-release-automation": "^1.0.8"
+  },
+  "scripts": {
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "build": "wp-release build",
+    "zip": "wp-release zip",
+    "release": "wp-release release",
+    "publish": "wp-release publish"
+  }
 }
