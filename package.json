@@ -1,31 +1,33 @@
 {
-  "name": "nanato-wp-github-updates",
-  "version": "1.0.3",
-  "description": "A WordPress plugin that enables automatic updates and installations of themes and plugins directly from GitHub repositories, including private repositories.",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/gabydevdev/nanato-wp-github-updates.git"
-  },
-  "keywords": [
-    "wordpress",
-    "plugin",
-    "github",
-    "updates",
-    "automatic-updates",
-    "private-repositories",
-    "themes",
-    "plugins"
-  ],
-  "devDependencies": {
-    "wp-release-automation": "^1.0.8"
-  },
-  "scripts": {
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version",
-    "build": "wp-release build",
-    "zip": "wp-release zip",
-    "release": "wp-release release",
-    "publish": "wp-release publish"
-  }
+	"name": "nanato-wp-github-updates",
+	"version": "1.0.3",
+	"author": "nanatomedia",
+	"license": "MIT",
+	"devDependencies": {
+		"@wordpress/eslint-plugin": "^22.22.0",
+		"@wordpress/prettier-config": "^4.37.0",
+		"@wordpress/scripts": "^30.27.0",
+		"@wordpress/stylelint-config": "^23.29.0",
+		"eslint-config-prettier": "^10.1.8",
+		"stylelint": "^16.26.1",
+		"stylelint-scss": "^6.14.0",
+		"wp-release-automation": "^1.0.8"
+	},
+	"scripts": {
+		"start": "wp-scripts start --experimental-modules",
+		"lint:js": "wp-scripts lint-js --max-warnings=0",
+		"format:js": "wp-scripts lint-js --fix",
+		"php:lint": "composer run lint",
+		"php:format": "composer run format",
+		"wp:build": "wp-scripts build --experimental-modules --stats=errors-only",
+		"version:patch": "npm version patch --no-git-tag-version",
+		"version:minor": "npm version minor --no-git-tag-version",
+		"version:major": "npm version major --no-git-tag-version",
+		"build": "wp-release build",
+		"zip": "wp-release zip",
+		"publish": "wp-release publish"
+	},
+	"dependencies": {
+		"bootstrap": "^5.3.8"
+	}
 }
