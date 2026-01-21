@@ -5,9 +5,9 @@
     <!-- What to scan -->
     <file>.</file>
     <exclude-pattern>/build/</exclude-pattern>
+    <exclude-pattern>/dist/</exclude-pattern>
     <exclude-pattern>/node_modules/</exclude-pattern>
     <exclude-pattern>/vendor/</exclude-pattern>
-    <exclude-pattern>build/*.asset.php</exclude-pattern>
 
     <!-- How to scan -->
     <arg value="sp" />
@@ -28,22 +28,6 @@
     <rule ref="WordPress.Arrays.MultipleStatementAlignment">
         <properties>
             <property name="maxColumn" value="80" />
-        </properties>
-    </rule>
-
-    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
-        <properties>
-            <property name="prefixes" type="array">
-                <element value="Ceja_Law_Firm_Addons" />
-            </property>
-        </properties>
-    </rule>
-
-    <rule ref="WordPress.WP.I18n">
-        <properties>
-            <property name="text_domain" type="array">
-                <element value="ceja-law-firm-addons" />
-            </property>
         </properties>
     </rule>
 </ruleset>

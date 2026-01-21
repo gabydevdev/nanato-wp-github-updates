@@ -1,34 +1,51 @@
 {
-  "name": "nanato-wp-github-updates",
-  "version": "1.1.1",
-  "author": "nanatomedia",
-  "license": "MIT",
-  "devDependencies": {
-    "@wordpress/eslint-plugin": "^22.22.0",
-    "@wordpress/prettier-config": "^4.37.0",
-    "@wordpress/scripts": "^30.27.0",
-    "@wordpress/stylelint-config": "^23.29.0",
-    "eslint-config-prettier": "^10.1.8",
-    "stylelint": "^16.26.1",
-    "stylelint-scss": "^6.14.0",
-    "wp-release-automation": "^1.0.8"
-  },
-  "scripts": {
-    "start": "wp-scripts start --experimental-modules",
-    "lint:js": "wp-scripts lint-js --max-warnings=0",
-    "format:js": "wp-scripts lint-js --fix",
-    "php:lint": "composer run lint",
-    "php:format": "composer run format",
-    "wp:build": "wp-scripts build --experimental-modules --stats=errors-only",
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version",
-    "build": "wp-release build",
-    "zip": "wp-release zip",
-    "publish": "wp-release publish",
-    "release": "wp-release release"
-  },
-  "dependencies": {
-    "bootstrap": "^5.3.8"
-  }
+	"name": "nanato-wp-github-updates",
+	"version": "1.1.1",
+	"description": "A WordPress plugin that enables updates and installations of themes and plugins from GitHub repositories.",
+	"author": "nanatomedia",
+	"license": "GPL-2.0-or-later",
+	"keywords": [
+		"nanato",
+		"wordpress-plugin",
+		"wordpress",
+		"github-api"
+	],
+	"homepage": "https://github.com/gabydevdev/nanato-wp-github-updates#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/gabydevdev/nanato-wp-github-updates.git"
+	},
+	"bugs": {
+		"url": "https://github.com/gabydevdev/nanato-wp-github-updates/issues"
+	},
+	"devDependencies": {
+		"@wordpress/eslint-plugin": "^22.22.0",
+		"@wordpress/prettier-config": "^4.37.0",
+		"@wordpress/scripts": "^30.27.0",
+		"@wordpress/stylelint-config": "^23.29.0",
+		"eslint-config-prettier": "^10.1.8",
+		"stylelint": "^16.26.1",
+		"stylelint-scss": "^6.14.0",
+		"webpack-remove-empty-scripts": "^1.1.1",
+		"wp-release-automation": "^1.0.8"
+	},
+	"scripts": {
+		"wp:start": "wp-scripts start",
+		"wp:lint:pkg-json": "wp-scripts lint-pkg-json",
+		"wp:format": "wp-scripts format",
+		"wp:lint:js": "wp-scripts lint-js ./src --max-warnings=0",
+		"wp:lint:js:format": "wp-scripts lint-js ./src --fix",
+		"wp:lint:style": "wp-scripts lint-style src/**/*.scss",
+		"wp:lint:style:format": "wp-scripts lint-style src/**/*.scss --fix",
+		"php:lint": "composer run lint",
+		"php:format": "composer run format",
+		"wp:build": "wp-scripts build --stats=errors-only",
+		"wp:lint:md:docs": "wp-scripts lint-md-docs",
+		"version:patch": "npm version patch --no-git-tag-version",
+		"version:minor": "npm version minor --no-git-tag-version",
+		"version:major": "npm version major --no-git-tag-version",
+		"package:build": "wp-release build",
+		"package:zip": "wp-release zip",
+		"package:publish": "wp-release publish"
+	}
 }

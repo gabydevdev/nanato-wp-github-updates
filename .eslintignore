@@ -1,4 +1,5 @@
 /build/
+/dist/
 /vendor/
 /node_modules/
 *.css

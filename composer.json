@@ -1,7 +1,7 @@
 {
 	"name": "nanatomedia/nanato-wp-github-updates",
-	"description": "",
-	"license": "MIT",
+	"description": "A WordPress plugin that enables updates and installations of themes and plugins from GitHub repositories.",
+	"license": "GPL-2.0-or-later",
 	"type": "wordpress-plugin",
 	"require-dev": {
 		"wp-coding-standards/wpcs": "^3.1"
