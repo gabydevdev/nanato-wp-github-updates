@@ -303,7 +303,7 @@ class Nanato_GitHub_Updater {
 		$info->requires_php   = $plugin_data['RequiresPHP'];
 		$info->homepage       = $plugin_data['PluginURI'];
 		$info->download_link  = $download_url;
-		$info->trunk          = $download_link;
+		$info->trunk          = $download_url;
 		$info->last_updated   = isset( $release['published_at'] ) ? date( 'Y-m-d', strtotime( $release['published_at'] ) ) : '';
 		$info->sections       = array(
 			'description' => $plugin_data['Description'],
