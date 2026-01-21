@@ -54,16 +54,24 @@ class Nanato_GitHub_API {
 	public function api_request( $url, $args = array() ) {
 		$default_args = array(
 			'headers'   => array(
-				'Accept'     => 'application/vnd.github.v3+json',
-				'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . get_bloginfo( 'url' ),
+				'Accept'               => 'application/vnd.github+json',
+				'X-GitHub-Api-Version' => '2022-11-28',
+				'User-Agent'           => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . get_bloginfo( 'url' ),
 			),
 			'timeout'   => 10,
-			'sslverify' => true, // Ensure SSL verification is enabled
+			'sslverify' => true,
 		);
 
 		// Add authentication if token is available
 		if ( ! empty( $this->access_token ) ) {
-			$default_args['headers']['Authorization'] = 'token ' . $this->access_token;
+			// Support both classic tokens (token prefix) and fine-grained tokens (ghp_ prefix)
+			if ( strpos( $this->access_token, 'ghp_' ) === 0 || strpos( $this->access_token, 'github_pat_' ) === 0 ) {
+				// Fine-grained token - use Bearer
+				$default_args['headers']['Authorization'] = 'Bearer ' . $this->access_token;
+			} else {
+				// Classic token - use token prefix
+				$default_args['headers']['Authorization'] = 'token ' . $this->access_token;
+			}
 		}
 
 		$args = wp_parse_args( $args, $default_args );
@@ -94,7 +102,25 @@ class Nanato_GitHub_API {
 			'limit'     => wp_remote_retrieve_header( $response, 'X-RateLimit-Limit' ),
 			'remaining' => wp_remote_retrieve_header( $response, 'X-RateLimit-Remaining' ),
 			'reset'     => wp_remote_retrieve_header( $response, 'X-RateLimit-Reset' ),
+			'resources' => wp_remote_retrieve_header( $response, 'X-RateLimit-Resource' ),
 		);
+
+		// Check for rate limiting
+		if ( $response_code === 403 && $this->rate_limit_info['remaining'] === '0' ) {
+			$reset_time = $this->rate_limit_info['reset'];
+			$reset_date = $reset_time ? date( 'Y-m-d H:i:s', $reset_time ) : 'unknown';
+
+			error_log( 'GitHub API Rate Limit Exceeded. Resets at: ' . $reset_date );
+
+			return new WP_Error(
+				'github_rate_limit_exceeded',
+				sprintf( 'GitHub API rate limit exceeded. Resets at %s.', $reset_date ),
+				array(
+					'response' => $response,
+					'code'     => $response_code,
+				)
+			);
+		}
 
 		if ( $response_code !== 200 ) {
 			$error_data    = json_decode( $body, true );
@@ -142,6 +168,26 @@ class Nanato_GitHub_API {
 	}
 
 	/**
+	 * Test the GitHub API connection
+	 *
+	 * @return array|WP_Error User data or WP_Error on failure.
+	 */
+	public function test_connection() {
+		$url = $this->api_url . '/user';
+
+		$response = $this->api_request( $url );
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		// Return user data along with rate limit info
+		$response['rate_limit'] = $this->rate_limit_info;
+
+		return $response;
+	}
+
+	/**
 	 * Get repository releases
 	 *
 	 * @param string $owner Repository owner/organization.
@@ -166,47 +212,49 @@ class Nanato_GitHub_API {
 
 		$response = $this->api_request( $url );
 
-		// If no releases found, try to use the default branch
-		if ( is_wp_error( $response ) && $response->get_error_code() === 'github_api_error' ) {
-			// Get repository info to find the default branch
-			$repo_info = $this->get_repository( $owner, $repo );
+		// If no releases found or access denied, try to use the default branch
+		if ( is_wp_error( $response ) ) {
+			$error_data = $response->get_error_data();
+			$error_code = isset( $error_data['code'] ) ? $error_data['code'] : 0;
+			
+			// Only fallback for 403, 404 errors (no releases or access issues)
+			if ( $error_code === 403 || $error_code === 404 ) {
+				error_log( 'GitHub API: No releases available (HTTP ' . $error_code . '), falling back to default branch' );
+				
+				// Get repository info to find the default branch
+				$repo_info = $this->get_repository( $owner, $repo );
 
-			if ( ! is_wp_error( $repo_info ) && isset( $repo_info['default_branch'] ) ) {
-				// Create a synthetic release using the default branch
-				return array(
-					'tag_name'     => 'main',
-					'name'         => 'Latest from ' . $repo_info['default_branch'],
-					'zipball_url'  => sprintf(
-						'%s/repos/%s/%s/zipball/%s',
-						$this->api_url,
-						$owner,
-						$repo,
-						$repo_info['default_branch']
-					),
-					'tarball_url'  => sprintf(
-						'%s/repos/%s/%s/tarball/%s',
-						$this->api_url,
-						$owner,
-						$repo,
-						$repo_info['default_branch']
-					),
-					'body'         => 'Using latest code from default branch.',
-					'published_at' => $repo_info['updated_at'],
-					'assets'       => array(),
-				);
+				if ( ! is_wp_error( $repo_info ) && isset( $repo_info['default_branch'] ) ) {
+					// Create a synthetic release using the default branch
+					$default_branch = $repo_info['default_branch'];
+					error_log( 'GitHub API: Using default branch: ' . $default_branch );
+					
+					return array(
+						'tag_name'     => $default_branch,
+						'name'         => 'Latest from ' . $default_branch,
+						'zipball_url'  => sprintf(
+							'%s/repos/%s/%s/zipball/%s',
+							$this->api_url,
+							$owner,
+							$repo,
+							$default_branch
+						),
+						'tarball_url'  => sprintf(
+							'%s/repos/%s/%s/tarball/%s',
+							$this->api_url,
+							$owner,
+							$repo,
+							$default_branch
+						),
+						'body'         => 'Using latest code from default branch.',
+						'published_at' => $repo_info['updated_at'],
+						'assets'       => array(),
+					);
+				}
 			}
 		}
 
 		return $response;
-	}
-
-	/**
-	 * Test connection to GitHub API
-	 *
-	 * @return array|WP_Error User data or WP_Error on failure.
-	 */
-	public function test_connection() {
-		return $this->api_request( $this->api_url . '/user' );
 	}
 
 	/**
@@ -266,162 +314,62 @@ class Nanato_GitHub_API {
 					return $repo_info;
 				}
 
-				$default_branch = isset( $repo_info['default_branch'] ) ? $repo_info['default_branch'] : 'main';
-
-				// Log the fallback
-				error_log( 'GitHub API: Falling back to default branch: ' . $default_branch );
-
-				// Use API URL for default branch to support authentication
-				$download_url = sprintf(
-					'%s/repos/%s/%s/zipball/%s',
-					$this->api_url,
-					$owner,
-					$repo,
-					$default_branch
-				);
-
-				return $download_url;
+				// Use default branch
+				$version = $repo_info['default_branch'];
+			} else {
+				// Use the release tag
+				$version = $release['tag_name'];
 			}
+		}
 
-			// Debug the release information
-			$this->debug_release_info( $release );
+		// Try to get download from assets first
+		if ( ! is_null( $version ) && ! is_wp_error( $release ) && ! empty( $release['assets'] ) ) {
+			foreach ( $release['assets'] as $asset ) {
+				if ( isset( $asset['browser_download_url'] ) &&
+					( strpos( $asset['name'], '.zip' ) !== false ||
+						isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip' ) ) {
 
-			// For private repositories or when we have auth, prefer zipball_url (API endpoint)
-			// which works better with token authentication
-			if ( ! empty( $release['zipball_url'] ) && ! empty( $this->access_token ) ) {
-				error_log( 'GitHub API: Using zipball URL for authenticated download: ' . $release['zipball_url'] );
-				return $release['zipball_url'];
-			}
-
-			// Check if there are any assets (only for public repos or as fallback)
-			if ( ! empty( $release['assets'] ) ) {
-				foreach ( $release['assets'] as $asset ) {
-					if ( isset( $asset['browser_download_url'] ) &&
-						( strpos( $asset['name'], '.zip' ) !== false ||
-							isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip' ) ) {
-
-						// For private repos, we need to use the API endpoint for assets
-						if ( ! empty( $this->access_token ) && isset( $asset['url'] ) ) {
-							error_log( 'GitHub API: Using asset API URL for authenticated download: ' . $asset['url'] );
-							return $asset['url'];
-						}
-
-						return $asset['browser_download_url'];
+					// For private repos, we need to use the API endpoint for assets
+					if ( ! empty( $this->access_token ) && isset( $asset['url'] ) ) {
+						error_log( 'GitHub API: Using asset API URL for authenticated download: ' . $asset['url'] );
+						return $asset['url'];
 					}
+
+					return $asset['browser_download_url'];
 				}
 			}
+		}
 
-			// Fallback to zipball_url from API (works better with auth)
-			if ( ! empty( $release['zipball_url'] ) ) {
-				error_log( 'GitHub API: Fallback to zipball URL: ' . $release['zipball_url'] );
-				return $release['zipball_url'];
-			}
+		// Fallback to zipball_url from API (works better with auth)
+		if ( ! empty( $release['zipball_url'] ) ) {
+			error_log( 'GitHub API: Fallback to zipball URL: ' . $release['zipball_url'] );
+			return $release['zipball_url'];
+		}
 
-			// If all else fails, construct an API download URL for the tag
-			if ( ! empty( $release['tag_name'] ) ) {
-				$download_url = sprintf(
-					'%s/repos/%s/%s/zipball/%s',
-					$this->api_url,
-					$owner,
-					$repo,
-					$release['tag_name']
-				);
-
-				return $download_url;
-			}
-
-			return new WP_Error(
-				'github_api_error',
-				'No download URL found in release information',
-				$release
+		// If all else fails, construct an API download URL for the tag
+		if ( ! empty( $version ) ) {
+			$download_url = sprintf(
+				'%s/repos/%s/%s/zipball/%s',
+				$this->api_url,
+				$owner,
+				$repo,
+				$version
 			);
+
+			return $download_url;
 		}
 
-		// Determine if version is a tag or branch
-		if ( preg_match( '/^v?\d+(\.\d+)*$/', $version ) ) {
-			// Looks like a version tag - use API URL for better auth support
-			if ( ! empty( $this->access_token ) ) {
-				$download_url = sprintf(
-					'%s/repos/%s/%s/zipball/%s',
-					$this->api_url,
-					$owner,
-					$repo,
-					$version
-				);
-			} else {
-				$download_url = sprintf(
-					'https://github.com/%s/%s/archive/refs/tags/%s.zip',
-					$owner,
-					$repo,
-					$version
-				);
-			}
-		} else {
-			// Treat as a branch - use API URL for better auth support
-			if ( ! empty( $this->access_token ) ) {
-				$download_url = sprintf(
-					'%s/repos/%s/%s/zipball/%s',
-					$this->api_url,
-					$owner,
-					$repo,
-					$version
-				);
-			} else {
-				$download_url = sprintf(
-					'https://github.com/%s/%s/archive/refs/heads/%s.zip',
-					$owner,
-					$repo,
-					$version
-				);
-			}
-		}
-
-		return $download_url;
+		return new WP_Error(
+			'github_api_error',
+			'No download URL found in release information',
+			$release ?? array()
+		);
 	}
 
 	/**
 	 * Download and verify a file from GitHub
 	 *
-	 * @param string $url URL to download.
-	 * @return string|WP_Error Path to downloaded file or WP_Error on failure.
-	 */
-	public function download_file( $url ) {
-		// Debug the URL we're trying to download
-		error_log( 'Attempting to download file from URL: ' . $url );
-
-		// For GitHub URLs, we'll use WordPress download_url function
-		// which is more reliable for handling larger files
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-
-		// Download the file
-		$temp_file = download_url( $url );
-
-		// Check if download was successful
-		if ( is_wp_error( $temp_file ) ) {
-			error_log( 'Download failed: ' . $temp_file->get_error_message() );
-			return $temp_file;
-		}
-
-		// Verify the file exists and has content
-		if ( ! file_exists( $temp_file ) || filesize( $temp_file ) < 100 ) {
-			error_log( 'Downloaded file not found or too small: ' . $temp_file . ' Size: ' . ( file_exists( $temp_file ) ? filesize( $temp_file ) : 0 ) );
-			return new WP_Error( 'download_failed', 'Downloaded file not found or is invalid' );
-		}
-
-		// Verify it's a valid ZIP file
-		if ( ! $this->is_valid_zip( $temp_file ) ) {
-			error_log( 'Downloaded file is not a valid ZIP archive' );
-			return new WP_Error( 'invalid_zip', 'Downloaded file is not a valid ZIP archive' );
-		}
-
-		error_log( 'File downloaded successfully to: ' . $temp_file . ' Size: ' . filesize( $temp_file ) . ' bytes' );
-		return $temp_file;
-	}
-
-	/**
-	 * Download and verify a file from GitHub with authentication
-	 *
-	 * @param string $url URL to download.
+	 * @param string $url File URL to download.
 	 * @return string|WP_Error Path to downloaded file or WP_Error on failure.
 	 */
 	public function download_file_authenticated( $url ) {
@@ -447,12 +395,17 @@ class Nanato_GitHub_API {
 			error_log( 'GitHub Download: Using asset download headers for API URL' );
 		} else {
 			// For regular API calls
-			$args['headers']['Accept'] = 'application/vnd.github.v3+json';
+			$args['headers']['Accept']               = 'application/vnd.github+json';
+			$args['headers']['X-GitHub-Api-Version'] = '2022-11-28';
 		}
 
 		// Add authentication if token is available
 		if ( ! empty( $this->access_token ) ) {
-			$args['headers']['Authorization'] = 'token ' . $this->access_token;
+			if ( strpos( $this->access_token, 'ghp_' ) === 0 || strpos( $this->access_token, 'github_pat_' ) === 0 ) {
+				$args['headers']['Authorization'] = 'Bearer ' . $this->access_token;
+			} else {
+				$args['headers']['Authorization'] = 'token ' . $this->access_token;
+			}
 			error_log( 'GitHub Download: Using authenticated request' );
 		} else {
 			error_log( 'GitHub Download: No authentication token available' );
@@ -484,6 +437,7 @@ class Nanato_GitHub_API {
 				$redirect_args = $args;
 				// Remove Accept header for the redirected URL (usually to AWS S3)
 				unset( $redirect_args['headers']['Accept'] );
+				unset( $redirect_args['headers']['X-GitHub-Api-Version'] );
 				unset( $redirect_args['headers']['Authorization'] ); // AWS S3 doesn't need GitHub auth
 
 				$response = wp_remote_get( $redirect_url, $redirect_args );
@@ -501,15 +455,25 @@ class Nanato_GitHub_API {
 
 		if ( $response_code !== 200 ) {
 			$error_message = $response_message;
+			$error_body = wp_remote_retrieve_body( $response );
+			$error_data = json_decode( $error_body, true );
 
 			// Provide more specific error messages
 			if ( $response_code === 404 ) {
 				$error_message = 'Repository or release not found. Check if the repository exists and is accessible.';
 			} elseif ( $response_code === 401 || $response_code === 403 ) {
-				$error_message = 'Access denied. Your GitHub token may be invalid or missing required permissions.';
+				// Check if it's a private repository access issue
+				if ( isset( $error_data['message'] ) && strpos( $error_data['message'], 'not accessible by personal access token' ) !== false ) {
+					$error_message = 'Access denied. Your GitHub token is missing required permissions. For private repositories, please add "Contents: Read-only" permission to your token at https://github.com/settings/tokens';
+				} else {
+					$error_message = 'Access denied. Your GitHub token may be invalid or missing required permissions. For private repositories, ensure your token has "Contents: Read-only" permission.';
+				}
 			}
 
 			error_log( 'GitHub Download Error: ' . $error_message . ' (HTTP ' . $response_code . ')' );
+			if ( isset( $error_data['message'] ) ) {
+				error_log( 'GitHub API Error Message: ' . $error_data['message'] );
+			}
 
 			return new WP_Error(
 				'github_download_error',
@@ -517,54 +481,54 @@ class Nanato_GitHub_API {
 				array(
 					'response' => $response,
 					'code'     => $response_code,
-					'url'      => $url,
 				)
 			);
 		}
 
-		// Check if we have content
-		if ( empty( $body ) ) {
-			error_log( 'GitHub Download Error: Empty response body' );
-			return new WP_Error( 'github_download_error', 'Empty response from GitHub' );
-		}
-
-		// Create a temporary file
+		// Create temporary file
 		$temp_file = wp_tempnam();
 		if ( ! $temp_file ) {
 			error_log( 'GitHub Download Error: Could not create temporary file' );
-			return new WP_Error( 'temp_file_error', 'Could not create temporary file' );
+			return new WP_Error(
+				'github_download_error',
+				'Could not create temporary file for download'
+			);
 		}
 
-		// Write the content to the temporary file
-		$bytes_written = file_put_contents( $temp_file, $body );
-		if ( $bytes_written === false ) {
-			@unlink( $temp_file );
+		// Write the file
+		$result = file_put_contents( $temp_file, $body );
+		if ( ! $result ) {
 			error_log( 'GitHub Download Error: Could not write to temporary file' );
-			return new WP_Error( 'file_write_error', 'Could not write to temporary file' );
-		}
-
-		error_log( 'GitHub Download: Successfully downloaded ' . $bytes_written . ' bytes to: ' . $temp_file );
-
-		// Verify it's a valid ZIP file
-		if ( ! $this->is_valid_zip( $temp_file ) ) {
 			@unlink( $temp_file );
-			error_log( 'GitHub Download Error: Downloaded file is not a valid ZIP archive' );
-			return new WP_Error( 'invalid_zip', 'Downloaded file is not a valid ZIP archive' );
+			return new WP_Error(
+				'github_download_error',
+				'Could not write downloaded file to disk'
+			);
 		}
 
+		// Validate the ZIP file
+		if ( ! $this->validate_zip_file( $temp_file ) ) {
+			error_log( 'GitHub Download Error: Downloaded file is not a valid ZIP archive' );
+			@unlink( $temp_file );
+			return new WP_Error(
+				'github_download_error',
+				'Downloaded file is not a valid ZIP archive'
+			);
+		}
+
+		error_log( 'GitHub Download: File downloaded successfully to: ' . $temp_file );
 		return $temp_file;
 	}
 
 	/**
-	 * Check if a file is a valid ZIP archive
+	 * Validate ZIP file integrity
 	 *
-	 * @param string $file Path to the file to check
-	 * @return bool True if the file is a valid ZIP archive, false otherwise
+	 * @param string $file Path to ZIP file.
+	 * @return bool True if valid ZIP file, false otherwise.
 	 */
-	private function is_valid_zip( $file ) {
-		// First check if the file exists and is readable
-		if ( ! file_exists( $file ) || ! is_readable( $file ) ) {
-			error_log( 'ZIP validation failed: File does not exist or is not readable' );
+	private function validate_zip_file( $file ) {
+		if ( ! file_exists( $file ) ) {
+			error_log( 'ZIP validation failed: File does not exist' );
 			return false;
 		}
 

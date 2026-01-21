@@ -97,23 +97,8 @@ class Nanato_GitHub_Installer {
 		$release = $this->api->get_latest_release( $owner, $name );
 
 		if ( is_wp_error( $release ) ) {
-			$error_message = 'No releases found for this repository.';
-			$error_data    = $release->get_error_data();
-
-			// Provide more specific error messages
-			if ( isset( $error_data['code'] ) ) {
-				switch ( $error_data['code'] ) {
-					case 404:
-						$error_message = 'No releases found for this repository. You can still install from the default branch if the repository exists.';
-						break;
-					case 401:
-					case 403:
-						$error_message = 'Access denied when trying to fetch releases. Please ensure your GitHub token has access to this repository.';
-						break;
-				}
-			}
-
-			wp_send_json_error( $error_message );
+			// Only return error if we truly can't access the repository
+			wp_send_json_error( 'Unable to access repository releases: ' . $release->get_error_message() );
 			return;
 		}
 

@@ -18,10 +18,10 @@ class Nanato_GitHub_Logger {
 	/**
 	 * Log levels
 	 */
-	const ERROR   = 'error';
+	const ERROR = 'error';
 	const WARNING = 'warning';
-	const INFO    = 'info';
-	const DEBUG   = 'debug';
+	const INFO = 'info';
+	const DEBUG = 'debug';
 
 	/**
 	 * Log a message
@@ -42,33 +42,31 @@ class Nanato_GitHub_Logger {
 			'context'   => $context,
 		);
 
-		// Get existing logs
-		$logs = get_option( 'nanato_github_updates_logs', array() );
+		// Write to WordPress debug log
+		error_log( '[GitHub Updates - ' . strtoupper( $level ) . '] ' . $message );
 
-		// Add new log entry
+		if ( ! empty( $context ) ) {
+			error_log( 'Context: ' . wp_json_encode( $context ) );
+		}
+
+		// Also store in options for dashboard display
+		$logs = get_option( 'nanato_github_updates_logs', array() );
 		array_unshift( $logs, $log_entry );
 
-		// Keep only the last 100 entries
+		// Keep only last 100 logs
 		$logs = array_slice( $logs, 0, 100 );
-
-		// Update logs
 		update_option( 'nanato_github_updates_logs', $logs );
-
-		// Also send to error log if it's an error
-		if ( $level === self::ERROR ) {
-			error_log( 'GitHub Updates Error: ' . $message );
-		}
 	}
 
 	/**
-	 * Check if we should log this level
+	 * Check if a log level should be logged
 	 *
 	 * @param string $level Log level
-	 * @return bool Whether to log
+	 * @return bool True if should log
 	 */
 	private static function should_log( $level ) {
-		$options   = get_option( 'nanato_github_updates_settings', array() );
-		$log_level = isset( $options['log_level'] ) ? $options['log_level'] : self::ERROR;
+		// Get the configured log level
+		$log_level = defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ? self::DEBUG : self::INFO;
 
 		$levels = array(
 			self::DEBUG   => 0,

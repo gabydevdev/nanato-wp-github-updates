@@ -118,12 +118,42 @@ class Nanato_GitHub_Updates_Admin {
 			// More thorough sanitization for API tokens
 			$token = sanitize_text_field( $input['github_token'] );
 
-			// Validate token format (GitHub tokens are 40 hex chars)
-			if ( ! empty( $token ) && ( ! preg_match( '/^[a-f0-9]{40}$/i', $token ) && ! preg_match( '/^ghp_[a-zA-Z0-9]{36}$/', $token ) ) ) {
+			// Validate token format
+			// GitHub classic tokens: 40 hex chars (optional 'ghp_' prefix in new format)
+			// GitHub fine-grained tokens: ghp_ prefix followed by alphanumeric
+			// GitHub OAuth tokens: gho_ prefix
+			// GitHub app tokens: ghu_ prefix  
+			// Machine learning tokens: github_pat_ prefix
+			$is_valid = false;
+
+			if ( ! empty( $token ) ) {
+				// Fine-grained tokens
+				if ( preg_match( '/^ghp_[a-zA-Z0-9_]{36,255}$/', $token ) ) {
+					$is_valid = true;
+				}
+				// Classic tokens (40 hex characters)
+				elseif ( preg_match( '/^[a-f0-9]{40}$/i', $token ) ) {
+					$is_valid = true;
+				}
+				// GitHub app installation access tokens
+				elseif ( preg_match( '/^ghu_[a-zA-Z0-9_]{36,255}$/', $token ) ) {
+					$is_valid = true;
+				}
+				// OAuth access tokens
+				elseif ( preg_match( '/^gho_[a-zA-Z0-9_]{36,255}$/', $token ) ) {
+					$is_valid = true;
+				}
+				// GitHub App user access tokens
+				elseif ( preg_match( '/^github_pat_[a-zA-Z0-9_]{36,255}$/', $token ) ) {
+					$is_valid = true;
+				}
+			}
+
+			if ( ! empty( $token ) && ! $is_valid ) {
 				add_settings_error(
 					'nanato_github_updates_settings',
 					'invalid_token',
-					__( 'The GitHub token format appears to be invalid.', 'nanato-wp-github-updates' )
+					__( 'The GitHub token format appears to be invalid. Please check your token.', 'nanato-wp-github-updates' )
 				);
 			}
 
