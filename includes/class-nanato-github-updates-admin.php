@@ -209,32 +209,36 @@ class Nanato_GitHub_Updates_Admin {
 
 		wp_enqueue_style(
 			'nanato-github-updates-admin',
-			NANATO_GITHUB_UPDATES_PLUGIN_URL . 'admin/css/admin.css',
+			NANATO_GITHUB_UPDATES_PLUGIN_URL . 'build/css/admin.css',
 			array(),
 			NANATO_GITHUB_UPDATES_VERSION
 		);
 
 		wp_enqueue_script(
 			'nanato-github-updates-admin',
-			NANATO_GITHUB_UPDATES_PLUGIN_URL . 'admin/js/admin.js',
+			NANATO_GITHUB_UPDATES_PLUGIN_URL . 'build/js/admin.js',
 			array( 'jquery' ),
 			NANATO_GITHUB_UPDATES_VERSION,
 			true
 		);
 
-		wp_localize_script( 'nanato-github-updates-admin', 'nanato_github_updates', array(
-			'ajax_url'           => admin_url( 'admin-ajax.php' ),
-			'nonce'              => wp_create_nonce( 'nanato_github_updates_nonce' ),
-			'testing_connection' => __( 'Testing connection...', 'nanato-wp-github-updates' ),
-			'connection_success' => __( 'Connection successful!', 'nanato-wp-github-updates' ),
-			'connection_error'   => __( 'Connection failed: ', 'nanato-wp-github-updates' ),
-			'confirm_remove'     => __( 'Are you sure you want to remove this repository?', 'nanato-wp-github-updates' ),
-			'searching'          => __( 'Searching...', 'nanato-wp-github-updates' ),
-			'search_error'       => __( 'Error searching repository: ', 'nanato-wp-github-updates' ),
-			'installing'         => __( 'Installing...', 'nanato-wp-github-updates' ),
-			'install_error'      => __( 'Installation error: ', 'nanato-wp-github-updates' ),
-			'install_success'    => __( 'Successfully installed!', 'nanato-wp-github-updates' ),
-		) );
+		wp_localize_script(
+			'nanato-github-updates-admin',
+			'nanato_github_updates',
+			array(
+				'ajax_url'           => admin_url( 'admin-ajax.php' ),
+				'nonce'              => wp_create_nonce( 'nanato_github_updates_nonce' ),
+				'testing_connection' => __( 'Testing connection...', 'nanato-wp-github-updates' ),
+				'connection_success' => __( 'Connection successful!', 'nanato-wp-github-updates' ),
+				'connection_error'   => __( 'Connection failed: ', 'nanato-wp-github-updates' ),
+				'confirm_remove'     => __( 'Are you sure you want to remove this repository?', 'nanato-wp-github-updates' ),
+				'searching'          => __( 'Searching...', 'nanato-wp-github-updates' ),
+				'search_error'       => __( 'Error searching repository: ', 'nanato-wp-github-updates' ),
+				'installing'         => __( 'Installing...', 'nanato-wp-github-updates' ),
+				'install_error'      => __( 'Installation error: ', 'nanato-wp-github-updates' ),
+				'install_success'    => __( 'Successfully installed!', 'nanato-wp-github-updates' ),
+			)
+		);
 	}
 
 	/**

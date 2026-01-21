@@ -48,7 +48,7 @@ class Nanato_GitHub_API {
 	 * Make an API request to GitHub
 	 *
 	 * @param string $url API endpoint URL.
-	 * @param array $args Additional arguments for the request.
+	 * @param array  $args Additional arguments for the request.
 	 * @return array|WP_Error Response data or WP_Error on failure.
 	 */
 	public function api_request( $url, $args = array() ) {
@@ -109,7 +109,7 @@ class Nanato_GitHub_API {
 					'response' => $response,
 					'code'     => $response_code,
 					'url'      => $url,
-					'body'     => $body
+					'body'     => $body,
 				)
 			);
 		}
@@ -122,7 +122,10 @@ class Nanato_GitHub_API {
 			return new WP_Error(
 				'github_api_error',
 				'Invalid JSON response from GitHub API',
-				array( 'url' => $url, 'body' => $body )
+				array(
+					'url'  => $url,
+					'body' => $body,
+				)
 			);
 		}
 
@@ -173,16 +176,20 @@ class Nanato_GitHub_API {
 				return array(
 					'tag_name'     => 'main',
 					'name'         => 'Latest from ' . $repo_info['default_branch'],
-					'zipball_url'  => sprintf( '%s/repos/%s/%s/zipball/%s',
+					'zipball_url'  => sprintf(
+						'%s/repos/%s/%s/zipball/%s',
 						$this->api_url,
 						$owner,
 						$repo,
-						$repo_info['default_branch'] ),
-					'tarball_url'  => sprintf( '%s/repos/%s/%s/tarball/%s',
+						$repo_info['default_branch']
+					),
+					'tarball_url'  => sprintf(
+						'%s/repos/%s/%s/tarball/%s',
 						$this->api_url,
 						$owner,
 						$repo,
-						$repo_info['default_branch'] ),
+						$repo_info['default_branch']
+					),
 					'body'         => 'Using latest code from default branch.',
 					'published_at' => $repo_info['updated_at'],
 					'assets'       => array(),
@@ -224,11 +231,13 @@ class Nanato_GitHub_API {
 	 * @return array|WP_Error Search results or WP_Error on failure.
 	 */
 	public function search_repositories( $query, $page = 1, $per_page = 10 ) {
-		$url = sprintf( '%s/search/repositories?q=%s&page=%d&per_page=%d',
+		$url = sprintf(
+			'%s/search/repositories?q=%s&page=%d&per_page=%d',
 			$this->api_url,
 			urlencode( $query ),
 			$page,
-			$per_page );
+			$per_page
+		);
 
 		return $this->api_request( $url );
 	}
@@ -263,7 +272,8 @@ class Nanato_GitHub_API {
 				error_log( 'GitHub API: Falling back to default branch: ' . $default_branch );
 
 				// Use API URL for default branch to support authentication
-				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+				$download_url = sprintf(
+					'%s/repos/%s/%s/zipball/%s',
 					$this->api_url,
 					$owner,
 					$repo,
@@ -289,13 +299,13 @@ class Nanato_GitHub_API {
 					if ( isset( $asset['browser_download_url'] ) &&
 						( strpos( $asset['name'], '.zip' ) !== false ||
 							isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip' ) ) {
-						
+
 						// For private repos, we need to use the API endpoint for assets
 						if ( ! empty( $this->access_token ) && isset( $asset['url'] ) ) {
 							error_log( 'GitHub API: Using asset API URL for authenticated download: ' . $asset['url'] );
 							return $asset['url'];
 						}
-						
+
 						return $asset['browser_download_url'];
 					}
 				}
@@ -309,7 +319,8 @@ class Nanato_GitHub_API {
 
 			// If all else fails, construct an API download URL for the tag
 			if ( ! empty( $release['tag_name'] ) ) {
-				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+				$download_url = sprintf(
+					'%s/repos/%s/%s/zipball/%s',
 					$this->api_url,
 					$owner,
 					$repo,
@@ -330,14 +341,16 @@ class Nanato_GitHub_API {
 		if ( preg_match( '/^v?\d+(\.\d+)*$/', $version ) ) {
 			// Looks like a version tag - use API URL for better auth support
 			if ( ! empty( $this->access_token ) ) {
-				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+				$download_url = sprintf(
+					'%s/repos/%s/%s/zipball/%s',
 					$this->api_url,
 					$owner,
 					$repo,
 					$version
 				);
 			} else {
-				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/tags/%s.zip',
+				$download_url = sprintf(
+					'https://github.com/%s/%s/archive/refs/tags/%s.zip',
 					$owner,
 					$repo,
 					$version
@@ -346,14 +359,16 @@ class Nanato_GitHub_API {
 		} else {
 			// Treat as a branch - use API URL for better auth support
 			if ( ! empty( $this->access_token ) ) {
-				$download_url = sprintf( '%s/repos/%s/%s/zipball/%s',
+				$download_url = sprintf(
+					'%s/repos/%s/%s/zipball/%s',
 					$this->api_url,
 					$owner,
 					$repo,
 					$version
 				);
 			} else {
-				$download_url = sprintf( 'https://github.com/%s/%s/archive/refs/heads/%s.zip',
+				$download_url = sprintf(
+					'https://github.com/%s/%s/archive/refs/heads/%s.zip',
 					$owner,
 					$repo,
 					$version
@@ -464,22 +479,22 @@ class Nanato_GitHub_API {
 			$redirect_url = wp_remote_retrieve_header( $response, 'location' );
 			if ( $redirect_url ) {
 				error_log( 'GitHub Download: Following redirect to: ' . $redirect_url );
-				
+
 				// Follow the redirect with the same authentication
 				$redirect_args = $args;
 				// Remove Accept header for the redirected URL (usually to AWS S3)
 				unset( $redirect_args['headers']['Accept'] );
 				unset( $redirect_args['headers']['Authorization'] ); // AWS S3 doesn't need GitHub auth
-				
+
 				$response = wp_remote_get( $redirect_url, $redirect_args );
-				
+
 				if ( is_wp_error( $response ) ) {
 					error_log( 'GitHub Download Redirect Error: ' . $response->get_error_message() );
 					return $response;
 				}
-				
+
 				$response_code = wp_remote_retrieve_response_code( $response );
-				$body = wp_remote_retrieve_body( $response );
+				$body          = wp_remote_retrieve_body( $response );
 				error_log( 'GitHub Download Redirect Response Code: ' . $response_code );
 			}
 		}
@@ -502,7 +517,7 @@ class Nanato_GitHub_API {
 				array(
 					'response' => $response,
 					'code'     => $response_code,
-					'url'      => $url
+					'url'      => $url,
 				)
 			);
 		}
@@ -557,7 +572,7 @@ class Nanato_GitHub_API {
 		if ( class_exists( 'ZipArchive' ) ) {
 			$zip    = new ZipArchive();
 			$result = $zip->open( $file, ZipArchive::CHECKCONS );
-			if ( $result === TRUE ) {
+			if ( $result === true ) {
 				// Log the contents of the ZIP file to help diagnose issues
 				error_log( 'ZIP validation passed: Archive contains ' . $zip->numFiles . ' files' );
 
@@ -589,8 +604,10 @@ class Nanato_GitHub_API {
 		fclose( $handle );
 
 		$result = $signature === "PK\003\004";
-		error_log( 'ZIP validation with signature check: ' . ( $result ? 'Passed' : 'Failed' ) .
-			' (Signature: ' . bin2hex( $signature ) . ', Expected: 504b0304)' );
+		error_log(
+			'ZIP validation with signature check: ' . ( $result ? 'Passed' : 'Failed' ) .
+			' (Signature: ' . bin2hex( $signature ) . ', Expected: 504b0304)'
+		);
 
 		return $result;
 	}

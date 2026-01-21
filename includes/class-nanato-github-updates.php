@@ -33,7 +33,7 @@ class Nanato_GitHub_Updates {
 		require_once NANATO_GITHUB_UPDATES_PLUGIN_DIR . 'includes/class-nanato-github-api.php';
 		require_once NANATO_GITHUB_UPDATES_PLUGIN_DIR . 'includes/class-nanato-github-updater.php';
 		require_once NANATO_GITHUB_UPDATES_PLUGIN_DIR . 'includes/class-nanato-github-installer.php';
-		require_once NANATO_GITHUB_UPDATES_PLUGIN_DIR . 'admin/class-nanato-github-updates-admin.php';
+		require_once NANATO_GITHUB_UPDATES_PLUGIN_DIR . 'includes/class-nanato-github-updates-admin.php';
 	}
 
 	/**
@@ -60,8 +60,8 @@ class Nanato_GitHub_Updates {
 	 * Handle GitHub downloads with authentication
 	 *
 	 * @param bool|WP_Error $result The download result or error
-	 * @param string $package The package URL
-	 * @param object $upgrader The WP_Upgrader instance
+	 * @param string        $package The package URL
+	 * @param object        $upgrader The WP_Upgrader instance
 	 * @return bool|WP_Error The download result or WP_Error on failure
 	 */
 	public function mark_as_github_update( $result, $package, $upgrader ) {
@@ -87,7 +87,7 @@ class Nanato_GitHub_Updates {
 			$api = new Nanato_GitHub_API();
 
 			// Check if we have a token to use for authentication
-			$options = get_option( 'nanato_github_updates_settings' );
+			$options   = get_option( 'nanato_github_updates_settings' );
 			$has_token = ! empty( $options['github_token'] );
 
 			if ( $has_token ) {
@@ -108,9 +108,9 @@ class Nanato_GitHub_Updates {
 				// For public repositories without auth, let WordPress handle it normally
 				// unless it's an API URL which definitely needs auth
 				if ( strpos( $package, 'api.github.com' ) !== false ) {
-					return new WP_Error( 
-						'github_auth_required', 
-						'This GitHub API URL requires authentication. Please configure your GitHub token in the plugin settings.' 
+					return new WP_Error(
+						'github_auth_required',
+						'This GitHub API URL requires authentication. Please configure your GitHub token in the plugin settings.'
 					);
 				}
 			}

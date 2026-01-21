@@ -18,17 +18,17 @@ class Nanato_GitHub_Logger {
 	/**
 	 * Log levels
 	 */
-	const ERROR = 'error';
+	const ERROR   = 'error';
 	const WARNING = 'warning';
-	const INFO = 'info';
-	const DEBUG = 'debug';
+	const INFO    = 'info';
+	const DEBUG   = 'debug';
 
 	/**
 	 * Log a message
 	 *
 	 * @param string $message Message to log
 	 * @param string $level Log level
-	 * @param array $context Additional context
+	 * @param array  $context Additional context
 	 */
 	public static function log( $message, $level = self::INFO, $context = array() ) {
 		if ( ! self::should_log( $level ) ) {
@@ -39,7 +39,7 @@ class Nanato_GitHub_Logger {
 			'timestamp' => current_time( 'mysql' ),
 			'level'     => $level,
 			'message'   => $message,
-			'context'   => $context
+			'context'   => $context,
 		);
 
 		// Get existing logs
@@ -74,7 +74,7 @@ class Nanato_GitHub_Logger {
 			self::DEBUG   => 0,
 			self::INFO    => 1,
 			self::WARNING => 2,
-			self::ERROR   => 3
+			self::ERROR   => 3,
 		);
 
 		return isset( $levels[ $level ] ) && isset( $levels[ $log_level ] ) &&

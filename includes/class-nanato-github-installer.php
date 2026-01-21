@@ -74,8 +74,8 @@ class Nanato_GitHub_Installer {
 
 		if ( is_wp_error( $repo_info ) ) {
 			$error_message = $repo_info->get_error_message();
-			$error_data = $repo_info->get_error_data();
-			
+			$error_data    = $repo_info->get_error_data();
+
 			// Provide more specific error messages for private repos
 			if ( isset( $error_data['code'] ) ) {
 				switch ( $error_data['code'] ) {
@@ -88,7 +88,7 @@ class Nanato_GitHub_Installer {
 						break;
 				}
 			}
-			
+
 			wp_send_json_error( $error_message );
 			return;
 		}
@@ -98,8 +98,8 @@ class Nanato_GitHub_Installer {
 
 		if ( is_wp_error( $release ) ) {
 			$error_message = 'No releases found for this repository.';
-			$error_data = $release->get_error_data();
-			
+			$error_data    = $release->get_error_data();
+
 			// Provide more specific error messages
 			if ( isset( $error_data['code'] ) ) {
 				switch ( $error_data['code'] ) {
@@ -112,7 +112,7 @@ class Nanato_GitHub_Installer {
 						break;
 				}
 			}
-			
+
 			wp_send_json_error( $error_message );
 			return;
 		}
@@ -197,9 +197,12 @@ class Nanato_GitHub_Installer {
 			$dir_contents = $wp_filesystem->dirlist( $target_dir );
 			if ( ! empty( $dir_contents ) ) {
 				// Filter out hidden files and directories
-				$visible_contents = array_filter( $dir_contents, function ($item) {
-					return substr( $item['name'], 0, 1 ) !== '.';
-				} );
+				$visible_contents = array_filter(
+					$dir_contents,
+					function ( $item ) {
+						return substr( $item['name'], 0, 1 ) !== '.';
+					}
+				);
 
 				if ( ! empty( $visible_contents ) ) {
 					wp_send_json_error( 'The directory "' . $slug . '" already exists and is not empty. Please choose a different name or remove the existing directory.' );
@@ -228,9 +231,9 @@ class Nanato_GitHub_Installer {
 		error_log( 'Using download URL: ' . $download_url );
 
 		// Check if this URL requires authentication or if we should try authentication
-		$api_url_detected = strpos( $download_url, 'api.github.com' ) !== false;
+		$api_url_detected    = strpos( $download_url, 'api.github.com' ) !== false;
 		$github_url_detected = strpos( $download_url, 'github.com' ) !== false;
-		
+
 		if ( $api_url_detected || $github_url_detected ) {
 			error_log( 'GitHub Download: GitHub URL detected, checking authentication' );
 
@@ -293,9 +296,12 @@ class Nanato_GitHub_Installer {
 
 		// Check if the extracted content has a subdirectory structure (common with GitHub)
 		$contents = glob( $target_dir . '/*' );
-		$dirs     = array_filter( $contents, function ($item) {
-			return is_dir( $item ) && basename( $item ) !== '.' && basename( $item ) !== '..';
-		} );
+		$dirs     = array_filter(
+			$contents,
+			function ( $item ) {
+				return is_dir( $item ) && basename( $item ) !== '.' && basename( $item ) !== '..';
+			}
+		);
 
 		// If there's exactly one directory and minimal files in the root, it might be a GitHub repository structure
 		if ( count( $dirs ) === 1 && count( $contents ) <= 3 ) {
@@ -351,10 +357,12 @@ class Nanato_GitHub_Installer {
 				$this->add_to_repository_list( 'plugin', $owner, $name, '', $main_file );
 			}
 
-			wp_send_json_success( array(
-				'message' => $activate ? 'Plugin installed and activated successfully.' : 'Plugin installed successfully.',
-				'file'    => $main_file
-			) );
+			wp_send_json_success(
+				array(
+					'message' => $activate ? 'Plugin installed and activated successfully.' : 'Plugin installed successfully.',
+					'file'    => $main_file,
+				)
+			);
 			return;
 		}
 
@@ -376,10 +384,12 @@ class Nanato_GitHub_Installer {
 				$this->add_to_repository_list( 'theme', $owner, $name, $slug, '' );
 			}
 
-			wp_send_json_success( array(
-				'message' => $activate ? 'Theme installed and activated successfully.' : 'Theme installed successfully.',
-				'slug'    => $slug
-			) );
+			wp_send_json_success(
+				array(
+					'message' => $activate ? 'Theme installed and activated successfully.' : 'Theme installed successfully.',
+					'slug'    => $slug,
+				)
+			);
 			return;
 		}
 
@@ -394,7 +404,7 @@ class Nanato_GitHub_Installer {
 	 * @param string $name Repository name
 	 * @param string $download_url Download URL (optional)
 	 * @param string $slug Desired slug (optional)
-	 * @param bool $activate Whether to activate after install
+	 * @param bool   $activate Whether to activate after install
 	 * @return array|WP_Error Result data on success, WP_Error on failure
 	 */
 	public function install_github_package( $type, $owner, $name, $download_url = '', $slug = '', $activate = false ) {
@@ -420,19 +430,25 @@ class Nanato_GitHub_Installer {
 
 		// Check if directory already exists and is not empty
 		if ( is_dir( $target_dir ) && count( glob( $target_dir . '/*' ) ) ) {
-			return new WP_Error( 'directory_exists', sprintf(
-				__( 'The %s directory already exists and is not empty.', 'nanato-wp-github-updates' ),
-				$slug
-			) );
+			return new WP_Error(
+				'directory_exists',
+				sprintf(
+					__( 'The %s directory already exists and is not empty.', 'nanato-wp-github-updates' ),
+					$slug
+				)
+			);
 		}
 
 		// Ensure target directory exists
 		if ( ! $wp_filesystem->exists( $target_dir ) ) {
 			if ( ! $wp_filesystem->mkdir( $target_dir, FS_CHMOD_DIR ) ) {
-				return new WP_Error( 'mkdir_failed', sprintf(
-					__( 'Could not create directory %s.', 'nanato-wp-github-updates' ),
-					$target_dir
-				) );
+				return new WP_Error(
+					'mkdir_failed',
+					sprintf(
+						__( 'Could not create directory %s.', 'nanato-wp-github-updates' ),
+						$target_dir
+					)
+				);
 			}
 		}        // Get download URL if not provided
 		if ( empty( $download_url ) ) {
@@ -453,7 +469,8 @@ class Nanato_GitHub_Installer {
 			$has_token = ! empty( $options['github_token'] );
 
 			if ( ! $has_token ) {
-				return new WP_Error( 'auth_required',
+				return new WP_Error(
+					'auth_required',
 					__( 'This repository requires a GitHub token for access. Please configure your GitHub token in the plugin settings.', 'nanato-wp-github-updates' )
 				);
 			}
@@ -478,7 +495,8 @@ class Nanato_GitHub_Installer {
 				}
 			}
 
-			return new WP_Error( 'download_failed',
+			return new WP_Error(
+				'download_failed',
 				__( 'Failed to download package: ', 'nanato-wp-github-updates' ) . $error_message
 			);
 		}
@@ -492,7 +510,8 @@ class Nanato_GitHub_Installer {
 		if ( is_wp_error( $unzip_result ) ) {
 			// Clean up the partially created directory
 			$wp_filesystem->rmdir( $target_dir, true );
-			return new WP_Error( 'unzip_failed',
+			return new WP_Error(
+				'unzip_failed',
 				__( 'Failed to extract package: ', 'nanato-wp-github-updates' ) . $unzip_result->get_error_message()
 			);
 		}
@@ -504,9 +523,12 @@ class Nanato_GitHub_Installer {
 		$subfolder      = null;
 
 		// Count non-hidden directories
-		$dirs = array_filter( $contents, function ($item) use ($target_dir) {
-			return $item !== '.' && $item !== '..' && is_dir( $target_dir . '/' . $item ) && substr( $item, 0, 1 ) !== '.';
-		} );
+		$dirs = array_filter(
+			$contents,
+			function ( $item ) use ( $target_dir ) {
+				return $item !== '.' && $item !== '..' && is_dir( $target_dir . '/' . $item ) && substr( $item, 0, 1 ) !== '.';
+			}
+		);
 
 		// If there's exactly one directory and it contains all the content, move it up
 		if ( count( $dirs ) === 1 ) {
@@ -532,15 +554,17 @@ class Nanato_GitHub_Installer {
 				// Move all files from subdirectory to the target directory
 				$subdir_contents = scandir( $subdir_path );
 				foreach ( $subdir_contents as $item ) {
-					if ( $item === '.' || $item === '..' )
+					if ( $item === '.' || $item === '..' ) {
 						continue;
+					}
 
 					$old_path = $subdir_path . '/' . $item;
 					$new_path = $target_dir . '/' . $item;
 
 					// Skip if destination already exists
-					if ( $wp_filesystem->exists( $new_path ) )
+					if ( $wp_filesystem->exists( $new_path ) ) {
 						continue;
+					}
 
 					// Move file or directory
 					if ( is_dir( $old_path ) ) {
@@ -569,7 +593,8 @@ class Nanato_GitHub_Installer {
 			}
 
 			if ( empty( $main_file ) ) {
-				return new WP_Error( 'plugin_file_not_found',
+				return new WP_Error(
+					'plugin_file_not_found',
 					__( 'Could not find the main plugin file.', 'nanato-wp-github-updates' )
 				);
 			}
@@ -578,7 +603,8 @@ class Nanato_GitHub_Installer {
 			if ( $activate ) {
 				$activate_result = activate_plugin( $main_file );
 				if ( is_wp_error( $activate_result ) ) {
-					return new WP_Error( 'activation_failed',
+					return new WP_Error(
+						'activation_failed',
 						__( 'Plugin installed but could not be activated: ', 'nanato-wp-github-updates' ) .
 						$activate_result->get_error_message()
 					);
@@ -589,7 +615,7 @@ class Nanato_GitHub_Installer {
 				'message' => $activate ?
 					__( 'Plugin installed and activated successfully.', 'nanato-wp-github-updates' ) :
 					__( 'Plugin installed successfully.', 'nanato-wp-github-updates' ),
-				'file'    => $main_file
+				'file'    => $main_file,
 			);
 		}
 
@@ -597,7 +623,8 @@ class Nanato_GitHub_Installer {
 		if ( $type === 'theme' ) {
 			// Check if style.css exists
 			if ( ! file_exists( $target_dir . '/style.css' ) ) {
-				return new WP_Error( 'theme_file_not_found',
+				return new WP_Error(
+					'theme_file_not_found',
 					__( 'Could not find the theme\'s style.css file.', 'nanato-wp-github-updates' )
 				);
 			}
@@ -611,7 +638,7 @@ class Nanato_GitHub_Installer {
 				'message' => $activate ?
 					__( 'Theme installed and activated successfully.', 'nanato-wp-github-updates' ) :
 					__( 'Theme installed successfully.', 'nanato-wp-github-updates' ),
-				'slug'    => $slug
+				'slug'    => $slug,
 			);
 		}
 
@@ -689,9 +716,12 @@ class Nanato_GitHub_Installer {
 		}
 
 		// Check if only hidden files exist
-		$visible_contents = array_filter( $dir_contents, function ($item) {
-			return substr( $item['name'], 0, 1 ) !== '.';
-		} );
+		$visible_contents = array_filter(
+			$dir_contents,
+			function ( $item ) {
+				return substr( $item['name'], 0, 1 ) !== '.';
+			}
+		);
 
 		if ( empty( $visible_contents ) ) {
 			// Only hidden files, remove them and the directory
