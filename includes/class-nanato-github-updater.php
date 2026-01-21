@@ -48,6 +48,10 @@ class Nanato_GitHub_Updater {
 		// Add filters for plugin and theme information
 		add_filter( 'plugins_api', array( $this, 'plugins_api_filter' ), 10, 3 );
 		add_filter( 'themes_api', array( $this, 'themes_api_filter' ), 10, 3 );
+
+		// Enable automatic background updates for GitHub-hosted plugins/themes
+		add_filter( 'auto_update_plugin', array( $this, 'enable_auto_update_plugin' ), 10, 2 );
+		add_filter( 'auto_update_theme', array( $this, 'enable_auto_update_theme' ), 10, 2 );
 	}
 
 	/**
@@ -163,18 +167,23 @@ class Nanato_GitHub_Updater {
 			return false;
 		}
 
-		// Find the asset to download (zip file)
+		// Get the download URL (prioritize release assets over zipball)
 		$download_url = '';
 
-		if ( ! empty( $release['zipball_url'] ) ) {
-			$download_url = $release['zipball_url'];
-		} elseif ( ! empty( $release['assets'] ) ) {
+		// Try release assets first (uploaded zip files)
+		if ( ! empty( $release['assets'] ) ) {
 			foreach ( $release['assets'] as $asset ) {
-				if ( isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip' ) {
-					$download_url = $asset['browser_download_url'];
+				if ( isset( $asset['name'] ) && strpos( $asset['name'], '.zip' ) !== false ) {
+					// Use API URL for authenticated access to private repos
+					$download_url = isset( $asset['url'] ) ? $asset['url'] : $asset['browser_download_url'];
 					break;
 				}
 			}
+		}
+
+		// Fallback to zipball URL
+		if ( empty( $download_url ) && ! empty( $release['zipball_url'] ) ) {
+			$download_url = $release['zipball_url'];
 		}
 
 		if ( empty( $download_url ) ) {
@@ -362,5 +371,53 @@ class Nanato_GitHub_Updater {
 		);
 
 		return $info;
+	}
+
+	/**
+	 * Enable automatic updates for GitHub-hosted plugins
+	 *
+	 * @param bool   $update Whether to update.
+	 * @param object $item   The plugin update object.
+	 * @return bool Whether to update.
+	 */
+	public function enable_auto_update_plugin( $update, $item ) {
+		// Check if this is a GitHub-hosted plugin
+		if ( isset( $item->plugin ) ) {
+			foreach ( $this->repositories as $repo ) {
+				if ( $repo['type'] === 'plugin' && $repo['file'] === $item->plugin ) {
+					// Check if auto-updates are enabled for this repo
+					if ( isset( $repo['auto_update'] ) && $repo['auto_update'] ) {
+						error_log( 'GitHub Updates: Enabling auto-update for plugin: ' . $item->plugin );
+						return true;
+					}
+				}
+			}
+		}
+
+		return $update;
+	}
+
+	/**
+	 * Enable automatic updates for GitHub-hosted themes
+	 *
+	 * @param bool   $update Whether to update.
+	 * @param object $item   The theme update object.
+	 * @return bool Whether to update.
+	 */
+	public function enable_auto_update_theme( $update, $item ) {
+		// Check if this is a GitHub-hosted theme
+		if ( isset( $item->theme ) ) {
+			foreach ( $this->repositories as $repo ) {
+				if ( $repo['type'] === 'theme' && $repo['slug'] === $item->theme ) {
+					// Check if auto-updates are enabled for this repo
+					if ( isset( $repo['auto_update'] ) && $repo['auto_update'] ) {
+						error_log( 'GitHub Updates: Enabling auto-update for theme: ' . $item->theme );
+						return true;
+					}
+				}
+			}
+		}
+
+		return $update;
 	}
 }

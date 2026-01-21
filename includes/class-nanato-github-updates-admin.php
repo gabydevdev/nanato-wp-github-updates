@@ -35,6 +35,7 @@ class Nanato_GitHub_Updates_Admin {
 		add_action( 'wp_ajax_nanato_github_test_connection', array( $this, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_nanato_github_add_repository', array( $this, 'ajax_add_repository' ) );
 		add_action( 'wp_ajax_nanato_github_remove_repository', array( $this, 'ajax_remove_repository' ) );
+		add_action( 'wp_ajax_nanato_github_toggle_auto_update', array( $this, 'ajax_toggle_auto_update' ) );
 	}
 
 	/**
@@ -194,6 +195,12 @@ class Nanato_GitHub_Updates_Admin {
 
 				if ( isset( $repo['file'] ) ) {
 					$sanitized[ $key ]['file'] = sanitize_text_field( $repo['file'] );
+				}
+
+				// Auto-update flag
+				if ( isset( $repo['auto_update'] ) ) {
+					$auto                             = $repo['auto_update'];
+					$sanitized[ $key ]['auto_update'] = ( $auto === true || $auto === 'true' || $auto === '1' );
 				}
 			}
 		}
@@ -361,11 +368,12 @@ class Nanato_GitHub_Updates_Admin {
 		}
 
 		// Validate and sanitize input
-		$type  = isset( $_POST['type'] ) ? sanitize_text_field( $_POST['type'] ) : '';
-		$owner = isset( $_POST['owner'] ) ? sanitize_text_field( $_POST['owner'] ) : '';
-		$name  = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
-		$slug  = isset( $_POST['slug'] ) ? sanitize_text_field( $_POST['slug'] ) : '';
-		$file  = isset( $_POST['file'] ) ? sanitize_text_field( $_POST['file'] ) : '';
+		$type        = isset( $_POST['type'] ) ? sanitize_text_field( $_POST['type'] ) : '';
+		$owner       = isset( $_POST['owner'] ) ? sanitize_text_field( $_POST['owner'] ) : '';
+		$name        = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
+		$slug        = isset( $_POST['slug'] ) ? sanitize_text_field( $_POST['slug'] ) : '';
+		$file        = isset( $_POST['file'] ) ? sanitize_text_field( $_POST['file'] ) : '';
+		$auto_update = isset( $_POST['auto_update'] ) ? ( $_POST['auto_update'] === 'true' || $_POST['auto_update'] === '1' ) : true;
 
 		if ( empty( $type ) || empty( $owner ) || empty( $name ) ) {
 			wp_send_json_error( 'Required fields are missing.' );
@@ -387,11 +395,12 @@ class Nanato_GitHub_Updates_Admin {
 
 		// Add new repository
 		$repositories[] = array(
-			'type'  => $type,
-			'owner' => $owner,
-			'name'  => $name,
-			'slug'  => $slug,
-			'file'  => $file,
+			'type'        => $type,
+			'owner'       => $owner,
+			'name'        => $name,
+			'slug'        => $slug,
+			'file'        => $file,
+			'auto_update' => $auto_update,
 		);
 
 		// Update option
@@ -446,6 +455,39 @@ class Nanato_GitHub_Updates_Admin {
 	}
 
 	/**
+	 * Handle AJAX toggle auto-update
+	 */
+	public function ajax_toggle_auto_update() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'nanato_github_updates_nonce' ) ) {
+			wp_send_json_error( 'Security check failed.' );
+			return;
+		}
+
+		// Check user capabilities
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'You do not have permission to perform this action.' );
+			return;
+		}
+
+		$index   = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : -1;
+		$enabled = isset( $_POST['enabled'] ) ? ( $_POST['enabled'] === 'true' || $_POST['enabled'] === '1' ) : false;
+
+		$repositories = get_option( 'nanato_github_updates_repositories', array() );
+
+		if ( $index < 0 || ! isset( $repositories[ $index ] ) ) {
+			wp_send_json_error( 'Repository not found.' );
+			return;
+		}
+
+		$repositories[ $index ]['auto_update'] = $enabled;
+
+		update_option( 'nanato_github_updates_repositories', $repositories );
+
+		wp_send_json_success();
+	}
+
+	/**
 	 * Render admin page
 	 */
 	public function render_admin_page() {
@@ -478,6 +520,7 @@ class Nanato_GitHub_Updates_Admin {
 							<th><?php esc_html_e( 'Type', 'nanato-wp-github-updates' ); ?></th>
 							<th><?php esc_html_e( 'Repository', 'nanato-wp-github-updates' ); ?></th>
 							<th><?php esc_html_e( 'Slug/File', 'nanato-wp-github-updates' ); ?></th>
+							<th><?php esc_html_e( 'Auto-update', 'nanato-wp-github-updates' ); ?></th>
 							<th><?php esc_html_e( 'Actions', 'nanato-wp-github-updates' ); ?></th>
 						</tr>
 					</thead>
@@ -499,6 +542,11 @@ class Nanato_GitHub_Updates_Admin {
 											echo esc_html( $repo['file'] );
 										}
 										?>
+									</td>
+									<td>
+										<button type="button" class="button button-small toggle-auto-update" data-index="<?php echo esc_attr( $index ); ?>" data-enabled="<?php echo ! empty( $repo['auto_update'] ) ? '1' : '0'; ?>">
+											<?php echo ! empty( $repo['auto_update'] ) ? esc_html__( 'Disable', 'nanato-wp-github-updates' ) : esc_html__( 'Enable', 'nanato-wp-github-updates' ); ?>
+										</button>
 									</td>
 									<td>
 										<button type="button" class="button button-small remove-repo" data-index="<?php echo esc_attr( $index ); ?>">
@@ -551,6 +599,15 @@ class Nanato_GitHub_Updates_Admin {
 								<td>
 									<input type="text" id="plugin_file" name="plugin_file" class="regular-text" />
 									<p class="description"><?php esc_html_e( 'The main plugin file (e.g., my-plugin/my-plugin.php)', 'nanato-wp-github-updates' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Auto-update', 'nanato-wp-github-updates' ); ?></th>
+								<td>
+									<label>
+										<input type="checkbox" id="repo_auto_update" name="repo_auto_update" checked />
+										<?php esc_html_e( 'Enable automatic updates for this repository', 'nanato-wp-github-updates' ); ?>
+									</label>
 								</td>
 							</tr>
 						</table>

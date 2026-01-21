@@ -339,7 +339,7 @@ class Nanato_GitHub_Installer {
 
 			// Add to repository list if requested
 			if ( isset( $_POST['add_to_updater'] ) && $_POST['add_to_updater'] === 'true' ) {
-				$this->add_to_repository_list( 'plugin', $owner, $name, '', $main_file );
+				$this->add_to_repository_list( 'plugin', $owner, $name, '', $main_file, true );
 			}
 
 			wp_send_json_success(
@@ -366,7 +366,7 @@ class Nanato_GitHub_Installer {
 
 			// Add to repository list if requested
 			if ( isset( $_POST['add_to_updater'] ) && $_POST['add_to_updater'] === 'true' ) {
-				$this->add_to_repository_list( 'theme', $owner, $name, $slug, '' );
+				$this->add_to_repository_list( 'theme', $owner, $name, $slug, '', true );
 			}
 
 			wp_send_json_success(
@@ -650,7 +650,7 @@ class Nanato_GitHub_Installer {
 	 * @param string $file Plugin file (for plugins).
 	 * @return bool True on success, false on failure.
 	 */
-	public function add_to_repository_list( $type, $owner, $name, $slug = '', $file = '' ) {
+	public function add_to_repository_list( $type, $owner, $name, $slug = '', $file = '', $auto_update = false ) {
 		// Validate parameters
 		if ( empty( $type ) || empty( $owner ) || empty( $name ) ) {
 			return false;
@@ -669,11 +669,12 @@ class Nanato_GitHub_Installer {
 
 		// Add new repository
 		$repositories[] = array(
-			'type'  => $type,
-			'owner' => $owner,
-			'name'  => $name,
-			'slug'  => $slug,
-			'file'  => $file,
+			'type'        => $type,
+			'owner'       => $owner,
+			'name'        => $name,
+			'slug'        => $slug,
+			'file'        => $file,
+			'auto_update' => $auto_update,
 		);
 
 		// Update option

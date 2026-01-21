@@ -149,6 +149,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			formData.append('name', name);
 			formData.append('slug', slug);
 			formData.append('file', file);
+			// Auto-update flag
+			const autoUpdate = document.getElementById('repo_auto_update')?.checked ? 'true' : 'false';
+			formData.append('auto_update', autoUpdate);
 
 			fetch(nanato_github_updates.ajax_url, {
 				method: 'POST',
@@ -200,6 +203,46 @@ document.addEventListener('DOMContentLoaded', function () {
 				.catch(error => {
 					console.error('Fetch Error:', error);
 					alert('Server error occurred. Check your server logs.');
+				});
+		}
+	});
+
+	// Toggle auto-update
+	document.addEventListener('click', function (e) {
+		if (e.target && e.target.classList.contains('toggle-auto-update')) {
+			const btn = e.target;
+			const index = btn.dataset.index;
+			const currentlyEnabled = btn.dataset.enabled === '1';
+			const nextState = (!currentlyEnabled).toString();
+
+			btn.disabled = true;
+			btn.textContent = currentlyEnabled ? 'Enabling...' : 'Disabling...';
+
+			const formData = new FormData();
+			formData.append('action', 'nanato_github_toggle_auto_update');
+			formData.append('nonce', nanato_github_updates.nonce);
+			formData.append('index', index);
+			formData.append('enabled', nextState);
+
+			fetch(nanato_github_updates.ajax_url, {
+				method: 'POST',
+				body: formData,
+			})
+				.then(response => response.json())
+				.then(response => {
+					if (response.success) {
+						btn.dataset.enabled = nextState === 'true' ? '1' : '0';
+						btn.textContent = nextState === 'true' ? 'Disable' : 'Enable';
+					} else {
+						alert('Error: ' + response.data);
+					}
+				})
+				.catch(error => {
+					console.error('Fetch Error:', error);
+					alert('Server error occurred. Check your server logs.');
+				})
+				.finally(() => {
+					btn.disabled = false;
 				});
 		}
 	});

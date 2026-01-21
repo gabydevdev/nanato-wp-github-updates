@@ -216,11 +216,11 @@ class Nanato_GitHub_API {
 		if ( is_wp_error( $response ) ) {
 			$error_data = $response->get_error_data();
 			$error_code = isset( $error_data['code'] ) ? $error_data['code'] : 0;
-			
+
 			// Only fallback for 403, 404 errors (no releases or access issues)
 			if ( $error_code === 403 || $error_code === 404 ) {
 				error_log( 'GitHub API: No releases available (HTTP ' . $error_code . '), falling back to default branch' );
-				
+
 				// Get repository info to find the default branch
 				$repo_info = $this->get_repository( $owner, $repo );
 
@@ -228,7 +228,7 @@ class Nanato_GitHub_API {
 					// Create a synthetic release using the default branch
 					$default_branch = $repo_info['default_branch'];
 					error_log( 'GitHub API: Using default branch: ' . $default_branch );
-					
+
 					return array(
 						'tag_name'     => $default_branch,
 						'name'         => 'Latest from ' . $default_branch,
@@ -455,8 +455,8 @@ class Nanato_GitHub_API {
 
 		if ( $response_code !== 200 ) {
 			$error_message = $response_message;
-			$error_body = wp_remote_retrieve_body( $response );
-			$error_data = json_decode( $error_body, true );
+			$error_body    = wp_remote_retrieve_body( $response );
+			$error_data    = json_decode( $error_body, true );
 
 			// Provide more specific error messages
 			if ( $response_code === 404 ) {
