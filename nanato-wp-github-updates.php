@@ -4,7 +4,7 @@
  *
  * Plugin Name: Nanato WP GitHub Updates
  * Description: Update and install WordPress themes or plugins from your own private GitHub repositories.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Text Domain: nanato-github-updates
  * Domain Path: /languages
  */
